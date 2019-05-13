@@ -21,7 +21,20 @@ urlpatterns = [
     # 用户模块
     url(r'^', include('users.urls', namespace='users')),
     # 首页模块
-    url(r'^', include('content.urls', namespace='content')),
+    url(r'^', include('content.urls', namespace='contents')),
     # 验证模块
-    url(r'^', include('verifications.urls', namespace='verifications'))
+    url(r'^', include('verifications.urls', namespace='verifications')),
+    # qq模块
+    url(r'^', include('oauth.urls', namespace='oauth')),
+    # 收货地址
+    url(r'^', include('area.urls', namespace='area')),
+    # 商品模块
+    url(r'^', include('goods.urls', namespace='goods')),
+    # 搜索模块
+    url(r'^search/', include('haystack.urls')),
+    # 购物车模块
+    url(r'^', include('carts.urls')),
+    # 购物车模块
+    url(r'^', include('orders.urls')),
+
 ]

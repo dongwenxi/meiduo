@@ -1,6 +1,8 @@
 # 编写异步任务代码
 from celery_tasks.sms.yuntongxun.sms import CCP
 from celery_tasks.main import celery_app
+
+# 导包失败，celery是脱离django框架运行的，必须在main文件中指定django配置文件路径
 from meiduo_mall.apps.verifications import constants
 
 

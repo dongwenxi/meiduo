@@ -10,4 +10,9 @@ urlpatterns = [
     url(r'^orders/commit/$', views.OrderCommitView.as_view()),
     # 订单成功
     url(r'^orders/success/$', views.OrderSuccessView.as_view()),
+    # 订单评价
+    url(r'^orders/comment/$', views.OrderCommentView.as_view()),
+    # 显示评价
+    url(r'^comments/(?P<sku_id>\d+)/$', views.GoodsCommentView.as_view()),
+
 ]

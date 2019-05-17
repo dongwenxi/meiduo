@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     'content',
     'haystack',
     'orders',
+    'payment',
+    'django_crontab',
 
 ]
 
@@ -52,7 +54,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -227,15 +229,15 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/1.11/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'zh-hans'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = False
 
 USE_I18N = True
 
 USE_L10N = True
 
-USE_TZ = True
+USE_TZ = False
 
 
 # Static files (CSS, JavaScript, Images)
@@ -284,3 +286,18 @@ HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'
 
 # mixin类自动跳转登录界面的url
 LOGIN_URL = '/login/'
+
+# 支付宝
+ALIPAY_APPID = '2016093000634695'
+ALIPAY_DEBUG = True  # 表示是沙箱环境还是真实支付环境  T 为沙箱环境
+ALIPAY_URL = 'https://openapi.alipaydev.com/gateway.do'
+ALIPAY_RETURN_URL = 'http://www.meiduo.site:8000/payment/status/'
+
+# 定时任务列表
+CRONJOBS = [
+    # 每1分钟生成一次首页静态文件， 执行文件路径， 生成日志文件路径
+    ('*/1 * * * *', 'content.crons.generate_static_index_html', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/crontab.log'))
+]
+
+# 中文显示异常编码
+CRONTAB_COMMAND_PREFIX = 'LANG_ALL=zh_cn.UTF-8'

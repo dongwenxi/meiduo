@@ -22,7 +22,7 @@ def merge_cart_cookie_to_redis(request, user, response):
     for sku_id, sku_dict in cart_dict.items():
         # {sku_id: count}
         # 将cookie中的sku_id count 向redis的hash去存
-        pl.hset('carts_%s' % user.id, sku_id, sku_dict['count'])
+        pl.hset('cart_%s' % user.id, sku_id, sku_dict['count'])
         # 如果当前cookie中的商品是勾选就把勾选商品sku_id向set集合添加
         if sku_dict['selected']:
             pl.sadd('selected_%s' % user.id, sku_id)

@@ -9,11 +9,14 @@ import json, re
 from django.conf import settings
 from django.core.paginator import Paginator
 import logging
+from random import randint
+from itsdangerous import TimedJSONWebSignatureSerializer as TOKEN
 
 from .models import User, Address
 from meiduo_mall.utils.views import LoginRequiredView
 from .utils import check_token_to_user, generate_verify_email_url
 from celery_tasks.email.tasks import send_verify_email
+from celery_tasks.sms.tasks import send_sms_code
 from meiduo_mall.utils.response_code import RETCODE
 from goods.models import SKU
 from carts.utils import merge_cart_cookie_to_redis
@@ -563,3 +566,131 @@ class UserOrderInfoView(LoginRequiredView):
         return render(request, 'user_center_order.html', context)
 
 
+class FindPasswordView(View):
+    '''找回密码'''
+
+    def get(self, request):
+        '''渲染找回密码界面'''
+
+        return render(request, 'find_password.html')
+
+
+class UsernameExistView(View):
+    '''验证用户名是否存在'''
+
+    def get(self, request, username):
+        # 获取参数
+        image_code_cli = request.GET.get('text')
+        uuid = request.GET.get('image_code_id')
+        # 校验
+        # 校验用户名是否已存在
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return http.JsonResponse({'code': RETCODE.USERERR, 'errmsg': '用户名不存在'}, status=404)
+        # 创建redis连接对象
+        redis_conn = get_redis_connection('verify_code')
+        # 提取图像验证码
+        img_code = redis_conn.get('img_%s' % uuid)
+        # 提取完毕之后删除图形验证码，防止恶意刷短信
+        redis_conn.delete('img_%s' % uuid)
+        # get数据如果为空，会报错，所以要先验证图形验证码是否失效
+        if img_code is None:
+            return http.JsonResponse({'code': RETCODE.NECESSARYPARAMERR, 'errmsg': '图形验证码失效'})
+        # 对比图形验证码
+        # 注意：从服务器提取的图形验证码一定要解码
+        if image_code_cli.lower() != img_code.decode().lower():
+            return http.JsonResponse({'code': RETCODE.IMAGECODEERR, 'errmsg': '图形验证码有误'}, status=400)
+        # 根据用户名获取手机号
+        mobile = user.mobile
+        # 创建token对象
+        token = TOKEN(settings.SECRET_KEY, 300)
+        access_token = token.dumps({'mobile': mobile})
+        access_token = access_token.decode()
+        # 存储access_token进redis
+        redis_conn.setex('token_%s' % user.id, 300, access_token)
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'mobile': mobile, 'access_token': access_token})
+
+
+class GenerateSmsCodeView(View):
+    '''发送短信验证码'''
+    def get(self, request):
+        # 解析token，获取mobile
+        access_token = request.GET.get('access_token')
+        # 创建token对象
+        token = TOKEN(settings.SECRET_KEY, 300)
+        mobile = token.loads(access_token)['mobile']
+        # 生成短信验证码
+        sms_code = '%06d' % randint(0, 999999)
+        logger.info(sms_code)
+        # 创建redis管道对象来用于保存数据，能提高代码运行效率
+        redis_conn = get_redis_connection('verify_code')
+        pl = redis_conn.pipeline()
+        # 保存短信验证码
+        pl.setex('sms_%s' % mobile, 60 * 3, sms_code)
+        # 手机号发过短信后在redis中存储一个标记
+        # redis_conn.setex('send_flag_%s' % mobile, 60, 1)
+        pl.setex('send_flag_%s' % mobile, 60, 1)
+        # 执行管道
+        pl.execute()
+
+        # 发送短信验证码 (后面参数信息为 手机号，[验证码， 有效时间单位分钟]， 短信模板ID)
+        # CCP().send_template_sms(mobile, [sms_code, constants.SMS_CODE_EXPIRE // 60], constants.SMS_TEMPLATE_ID)
+        # 将需要执行的任务列表存储在broker
+        send_sms_code.delay(mobile, sms_code)
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '短信发送成功'})
+
+
+class SMSVerifyView(View):
+    '''验证短信验证码'''
+    def get(self, request, username):
+        # 获取参数信息
+        sms_code = request.GET.get('sms_code')
+        user = User.objects.get(username=username)
+        mobile = user.mobile
+        # 短信校验
+        # 创建redis连接,获取redis中的随机验证码/一定要解码
+        redis_conn = get_redis_connection('verify_code')
+        sms_code_server = redis_conn.get('sms_%s' % mobile).decode()
+        # 校验
+        if sms_code_server is None:
+            return http.JsonResponse({'errmsg': '手机号有误'}, status=404)
+        if sms_code_server != sms_code:
+            return http.JsonResponse({'errmsg': '输入的短信验证码有误'}, status=400)
+
+        user_id = user.id
+        access_token = redis_conn.get('token_%s' % user_id)
+        access_token = access_token.decode()
+        return http.JsonResponse({'user_id': user_id, 'access_token': access_token})
+
+
+class InputPasswordView(View):
+    '''覆盖原密码'''
+    def post(self, request, user_id):
+        # 获取用户
+        user = User.objects.get(id= user_id)
+        # 获取表单密码
+        pwd = request.POST.get('password')
+        cpwd = request.POST.get('password2')
+        access_token = request.POST.get('access_token')
+
+        # 校验
+        if all([pwd, cpwd, access_token]) is False:
+            return http.JsonResponse({'code': RETCODE.PARAMERR, 'message': '缺少必传参数'})
+
+        if pwd != cpwd:
+            return http.JsonResponse({'message': '两次输入密码不一致', 'code': RETCODE.CPWDERR})
+
+        # 创建reis链接
+        redis_conn = get_redis_connection('verify_code')
+        # 获取server中的token
+        access_token_server = redis_conn.get('token_%s' % user_id)
+        # 校验token
+        if access_token != access_token_server:
+            return http.JsonResponse({'message': '数据有误'}, status=400)
+
+        # 保存新密码
+        user.set_password(pwd)
+        user.save()
+
+        return http.JsonResponse({'code': RETCODE.OK, 'message': '修改成功'})

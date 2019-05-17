@@ -34,4 +34,14 @@ urlpatterns = [
     url(r'^browse_histories/$', views.UserBrowseHistory.as_view()),
     # 渲染用户订单
     url(r'^orders/info/(?P<page_num>\d+)/$', views.UserOrderInfoView.as_view()),
+    # 找回密码
+    url(r'^find_password/$', views.FindPasswordView.as_view(), name='find'),
+    # 第一步验证用户名
+    url(r'^accounts/(?P<username>[a-zA-Z0-9_-]{5,20})/sms/token/$', views.UsernameExistView.as_view()),
+    # 第二步验证短信
+    url(r'^sms_codes/$', views.GenerateSmsCodeView.as_view()),
+    # 第二步验证短信
+    url(r'^accounts/(?P<username>[a-zA-Z0-9_-]{5,20})/password/token/$', views.SMSVerifyView.as_view()),
+    # 重置密码
+    url(r'^users/(?P<user_id>\d+)/password/$',views.InputPasswordView.as_view()),
 ]

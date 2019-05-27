@@ -7,7 +7,7 @@ https://docs.djangoproject.com/en/1.11/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
-
+import datetime
 import os, sys
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -47,14 +47,17 @@ INSTALLED_APPS = [
     'orders',
     'payment',
     'django_crontab',
+    'meiduo_admin.apps.MeiduoAdminConfig',
+    'rest_framework'
 
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware', # 此处为注册的中间件
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -96,6 +99,30 @@ TEMPLATES = [
         },
     },
 ]
+
+# JWT扩展配置
+JWT_AUTH = {
+    # 设置生成jwt token的有效时间
+    'JWT_EXPIRATION_DELTA': datetime.timedelta(days=1),
+}
+
+CORS_ORIGIN_ALLOW_ALL=True
+CORS_ALLOW_CREDENTIALS = True  # 允许携带cookie
+
+
+# DRF框架配置
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        # 引入JWT认证机制，当客户端将jwt token传递给服务器之后
+        # 此认证机制会自动校验jwt token的有效性，无效会直接返回401(未认证错误)
+        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ),
+    'EXCEPTION_HANDLER': 'meiduo_mall.utils.exceptions.exception_handler',
+
+}
+
 
 WSGI_APPLICATION = 'meiduo_mall.wsgi.application'
 
@@ -248,6 +275,10 @@ STATIC_URL = '/static/'
 # 配置静态文件加载路径
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
+# 配置静态文件收集路径
+STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
+
+
 # 指定本项目用户模型类
 AUTH_USER_MODEL = 'users.User'
 
@@ -255,6 +286,11 @@ AUTH_USER_MODEL = 'users.User'
 QQ_CLIENT_ID = '101518219'
 QQ_CLIENT_SECRET = '418d84ebdc7241efb79536886ae95224'
 QQ_REDIRECT_URL = 'http://www.meiduo.site:8000/oauth_callback'
+
+# 微博登录配置项
+APP_KEY = '3305669385'
+APP_SECRET = '74c7bea69d5fc64f5c3b80c802325276'
+REDIRECT_URL = 'http://www.meiduo.site:8000/sina_callback'
 
 
 # 发邮箱配置项

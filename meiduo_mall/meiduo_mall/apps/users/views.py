@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, reverse
+from django.template import RequestContext
 from django.views import View
 from django import http
 from django.contrib.auth import login, logout, mixins
@@ -669,10 +670,11 @@ class InputPasswordView(View):
     def post(self, request, user_id):
         # 获取用户
         user = User.objects.get(id= user_id)
+        json_dict = json.loads(request.body.decode())
         # 获取表单密码
-        pwd = request.POST.get('password')
-        cpwd = request.POST.get('password2')
-        access_token = request.POST.get('access_token')
+        pwd = json_dict.get('password')
+        cpwd = json_dict.get('password2')
+        access_token = json_dict.get('access_token')
 
         # 校验
         if all([pwd, cpwd, access_token]) is False:
@@ -693,4 +695,4 @@ class InputPasswordView(View):
         user.set_password(pwd)
         user.save()
 
-        return http.JsonResponse({'code': RETCODE.OK, 'message': '修改成功'})
+        return http.JsonResponse({'code': RETCODE.OK, 'message': '修改成功'}, context_instance=RequestContext(request))

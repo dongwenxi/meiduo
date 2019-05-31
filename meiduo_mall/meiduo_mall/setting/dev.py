@@ -48,7 +48,8 @@ INSTALLED_APPS = [
     'payment',
     'django_crontab',
     'meiduo_admin.apps.MeiduoAdminConfig',
-    'rest_framework'
+    'rest_framework',
+    'corsheaders',
 
 ]
 
@@ -57,7 +58,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -100,18 +101,18 @@ TEMPLATES = [
     },
 ]
 
-# JWT扩展配置
-JWT_AUTH = {
-    # 设置生成jwt token的有效时间
-    'JWT_EXPIRATION_DELTA': datetime.timedelta(days=1),
-}
 
-CORS_ORIGIN_ALLOW_ALL=True
+# CORS跨域请求设置
+CORS_ORIGIN_WHITELIST = (
+    # 备注：允许源地址`127.0.0.1:8080`向当前API服务器发起跨域请求
+    'https://127.0.0.1:8080',
+)
+CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True  # 允许携带cookie
-
 
 # DRF框架配置
 REST_FRAMEWORK = {
+    # 认证
     'DEFAULT_AUTHENTICATION_CLASSES': (
         # 引入JWT认证机制，当客户端将jwt token传递给服务器之后
         # 此认证机制会自动校验jwt token的有效性，无效会直接返回401(未认证错误)
@@ -119,9 +120,18 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ),
+    # 异常处理
     'EXCEPTION_HANDLER': 'meiduo_mall.utils.exceptions.exception_handler',
-
+    # 设置DRF框架全局分页类
+    'DEFAULT_PAGINATION_CLASS': 'meiduo_admin.utils.pagination.StandardResultPagination'
 }
+
+# JWT扩展配置
+JWT_AUTH = {
+    # 设置生成jwt token的有效时间
+    'JWT_EXPIRATION_DELTA': datetime.timedelta(days=1),
+}
+
 
 
 WSGI_APPLICATION = 'meiduo_mall.wsgi.application'
@@ -138,6 +148,17 @@ WSGI_APPLICATION = 'meiduo_mall.wsgi.application'
 # }
 
 # 数据库mysql设置
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql', # 数据库引擎
+#         'HOST': '127.0.0.1', # 数据库主机
+#         'PORT': 3306, # 数据库端口
+#         'USER': 'root', # 数据库用户名
+#         'PASSWORD': 'mysql', # 数据库用户密码
+#         'NAME': 'meiduo' # 数据库名字
+#     },
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql', # 数据库引擎
@@ -304,9 +325,11 @@ EMAIL_FROM = 'meiduo<hbxcdwx@163.com>' # 发件人抬头
 # 邮箱验证链接域名部分
 EMAIL_VERIFY_URL = 'http://www.meiduo.site:8000/emails/verification/'
 
+
 # 修改Django的文件存储类
 DEFAULT_FILE_STORAGE = 'meiduo_mall.utils.fastdfs.fdfs_storage.FastDFSStorage'
-FDFS_BASE_URL = 'http://192.168.136.129:8888/'  # FastDFS中 sotrage(nginx) ip和端口
+FDFS_BASE_URL = 'http://image.meiduo.site:8888/'  # FastDFS中 sotrage(nginx) ip和端口
+FDFS_CLIENT_CONF = os.path.join(BASE_DIR, 'utils/fastdfs/client.conf')
 
 # Haystack
 HAYSTACK_CONNECTIONS = {
